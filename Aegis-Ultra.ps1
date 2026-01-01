@@ -56,7 +56,7 @@ Write-Host @"
     / /\ \   |  |__   |  |  __ \__||  | / \_|  |     \_\_/  
    / /__\ \  |   __|  |  | |_ |__  |  | \_  |  |      _ _   
   /  ____  \ |  |____ |  |__| |__| |  | \_/ |  |_____/ \ \  
- /__/    \__\|________|\_________/|__|_____/\________/  \__\ v2.0
+ /__/    \__\|________|\_________/|__|_____/\________/  \__\ v1.0
 "@ -ForegroundColor Cyan
 
 Write-Host " [ SYSTEM AUDIT ENGINE ACTIVATED ]" -ForegroundColor Black -BackgroundColor Cyan
@@ -104,3 +104,4 @@ Write-Host " [LOG] $Log" -ForegroundColor Gray
 # Auto-open Log
 Add-Content -Path $Log -Value ("[{0}] Full Elite Audit Completed by Bilel Jelassi" -f (Get-Date))
 Explorer.exe $Root
+
