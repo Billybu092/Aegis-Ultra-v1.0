@@ -59,7 +59,8 @@ Write-Progress -Activity "Aegis Ultra" -Status "Verifying System Files..."
 sfc /verifyonly | Out-Null
 
 Log "Sophisticated Audit Completed Successfully."
-Write-Host "`n[✔] Audit complete. Log generated at: $Log" -ForegroundColor Green
+Write-Host "`n[*] Audit complete. Log generated at: $Log" -ForegroundColor Green
 
 # The 'Magical Touch': Automatically open the log location for the user
 Explorer.exe $Root
+
