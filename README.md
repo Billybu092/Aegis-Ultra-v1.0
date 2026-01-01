@@ -25,18 +25,18 @@ Unlike "cleaners" or "boosters," Aegis Ultra follows a Safe-by-Default philosoph
 To download and prepare the engine, open PowerShell (as Administrator) and run:
 
 # Clone the repository
-git clone https://github.com/Billybu092/Aegis-Ultra.git
+git clone https://github.com/Billybu092/Aegis-Ultra v1.0.git
 
 # Enter the directory
 cd Aegis-Ultra
 
 # Run the official installer (Sets up folders and automation)
-.\Install-AegisUltra.ps1
+.\Install-AegisUltra v1.0 .ps1
 
 ### 2. Manual Execution
 If you wish to run a one-time audit without installing:
 
-powershell -ExecutionPolicy Bypass -File .\Aegis-Ultra.ps1
+powershell -ExecutionPolicy Bypass -File .\Aegis-Ultra v1.0 .ps1
 
 ---
 
