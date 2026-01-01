@@ -1,31 +1,20 @@
-<#
- AEGIS ULTRA – Installer & Automation
+﻿<#
+ AEGIS ULTRA – Master Installer
  Author: Bilel Jelassi
 #>
 
-function Ensure-Admin {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object Security.Principal.WindowsPrincipal($id)
-    if (-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        Start-Process powershell -Verb RunAs -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`""
-        exit
-    }
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell -Verb RunAs -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`""
+    exit
 }
-Ensure-Admin
 
 $Target = "$env:ProgramFiles\AegisUltra"
-if (!(Test-Path $Target)) {
-    New-Item -ItemType Directory -Path $Target | Out-Null
-}
+if (!(Test-Path $Target)) { New-Item -ItemType Directory -Path $Target -Force | Out-Null }
 
-# Ensure the file exists before copying
 if (Test-Path ".\Aegis-Ultra.ps1") {
     Copy-Item ".\Aegis-Ultra.ps1" "$Target\Aegis-Ultra.ps1" -Force
-    Write-Host "[✔] Aegis Ultra successfully installed to $Target" -ForegroundColor Green
-    
-    # Launch for initial audit
-    powershell -ExecutionPolicy Bypass -File "$Target\Aegis-Ultra.ps1"
+    Write-Host "[✔] Installation Successful. Aegis Ultra is now in Program Files." -ForegroundColor Green
+    & "$Target\Aegis-Ultra.ps1"
 } else {
-    Write-Host "[!] Error: Aegis-Ultra.ps1 not found in current directory." -ForegroundColor Red
+    Write-Host "[!] Error: Aegis-Ultra.ps1 not found in current folder." -ForegroundColor Red
 }
-

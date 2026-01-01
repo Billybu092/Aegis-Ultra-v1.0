@@ -1,65 +1,144 @@
-<#
+﻿<#
 ===============================================================================
- AEGIS ULTRA – Windows Audit, Hygiene & Security Engine
- Author : Bilel Jelassi | Version: 1.0
+ AEGIS ULTRA – SOVEREIGN FORENSIC EDITION (ULTIMATE)
+ Advanced Threat Hunting, NVMe Health & System Hardening
+ Author : Bilel Jelassi | Version: 3.0
 ===============================================================================
 #>
 
-function Ensure-Admin {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object Security.Principal.WindowsPrincipal($id)
-    if (-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        Write-Host "[!] Elevation required. Authenticating..." -ForegroundColor Cyan
-        Start-Process powershell -Verb RunAs -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`""
-        exit
+# --- PRE-FLIGHT & ENCODING ---
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$ErrorActionPreference = "SilentlyContinue"
+
+# Admin Auto-Elevation
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
+}
+
+# Fix for Get-PhysicalDisk & Module Prep
+Import-Module Storage -ErrorAction SilentlyContinue
+
+# --- CONFIGURATION ---
+$VT_KEY = [Environment]::GetEnvironmentVariable("VT_API_KEY", "User")
+$LogDir = "$env:USERPROFILE\Documents\SystemLogs"
+if (-not (Test-Path $LogDir)) { New-Item -Path $LogDir -ItemType Directory | Out-Null }
+$LogFile = Join-Path $LogDir "Aegis_Master_Report_$(Get-Date -Format 'yyyyMMdd').log"
+$Quarantine = "C:\Quarantine"
+if (-not (Test-Path $Quarantine)) { New-Item $Quarantine -ItemType Directory -Force | Out-Null }
+
+function Write-Aegis($Message, $Status = "INFO") {
+    $Color = switch ($Status) { "OK" {"Green"} "WARN" {"Yellow"} "FAIL" {"Red"} "SEC" {"Magenta"} default {"Cyan"} }
+    $TS = Get-Date -Format "HH:mm:ss"
+    Write-Host "[$TS] " -NoNewline -ForegroundColor Gray
+    Write-Host "$($Message.PadRight(55, '.'))" -NoNewline -ForegroundColor White
+    Write-Host " [$Status]" -ForegroundColor $Color
+    "[$TS] $Status : $Message" | Out-File -FilePath $LogFile -Append
+}
+
+function Show-Header {
+    Clear-Host
+    $C = "Cyan"; $B = "Blue"; $G = "Gray"; $M = "Magenta"
+    Write-Host "  ▄▄▄       ▓█████   ▄████  ██▓  ██████     █    ██  ██▓  ▄▄▄█████▓ ██▀███   ▄▄▄      " -ForegroundColor $C
+    Write-Host " ▒████▄     ▓█   ▀  ██▒ ▀█▒▓██▒▒██    ▒     ██  ▓██▒▓██▒  ▓  ██▒ ▓▒▓██ ▒ ██▒▒████▄    " -ForegroundColor $C
+    Write-Host " ▒██  ▀█▄   ▒███   ▒██░▄▄▄░▒██▒░ ▓██▄       ▓██  ▒██░▒██▒  ▒ ▓██░ ▒░▓██ ░▄█ ▒▒██  ▀█▄  " -ForegroundColor $C
+    Write-Host " ░██▄▄▄▄██  ▒▓█  ▄ ░▓█  ██▓░██░  ▒   ██▒    ▓▓█  ░██░░██░  ░ ▓██▓ ░ ▒██▀▀█▄  ░██▄▄▄▄██ " -ForegroundColor $B
+    Write-Host "  ▓█   ▓██▒ ░▒████▒░▒▓███▀▒░██░▒██████▒▒    ▒▒█████▓ ░██░    ▒██▒ ░ ░██▓ ▒██▒ ▓█   ▓██▒" -ForegroundColor $B
+    Write-Host "  ▒▒   ▓▒█░ ░░ ▒░ ░ ░▒   ▒ ░▓  ▒ ▒▓▒ ▒ ░    ░▒▓▒ ▒ ▒ ░▓      ▒ ░░   ░ ▒▓ ░▒▓░ ▒▒   ▓▒█░" -ForegroundColor $G
+    Write-Host "                                v3.0 MASTER EDITION | BY BILEL JELASSI`n" -ForegroundColor $M
+}
+
+# --- EXECUTION ENGINE ---
+Show-Header
+
+# PHASE 1: SYSTEM32 DLL INTEGRITY & VIRUSTOTAL
+Write-Aegis "Auditing System32 DLL Signatures" "SEC"
+$Unsigned = Get-ChildItem -Path "C:\Windows\System32\*.dll" | Get-AuthenticodeSignature | Where-Object { $_.Status -ne "Valid" }
+if ($Unsigned) {
+    Write-Aegis "DETECTED: $($Unsigned.Count) Unsigned/Modified DLLs!" "FAIL"
+    foreach ($Dll in $Unsigned) {
+        if ($VT_KEY) {
+            try {
+                $Hash = (Get-FileHash $Dll.Path -Algorithm SHA256).Hash
+                $Uri = "https://www.virustotal.com/api/v3/files/$Hash"
+                $Resp = Invoke-RestMethod -Uri $Uri -Headers @{"x-apikey"="$VT_KEY"} -Method Get -ErrorAction Stop
+                $Malicious = $Resp.data.attributes.last_analysis_stats.malicious
+                if ($Malicious -gt 0) {
+                    Write-Aegis "THREAT CONFIRMED: $($Dll.FileName) [$Malicious Flags]" "FAIL"
+                    Move-Item -Path $Dll.Path -Destination $Quarantine -Force
+                }
+            } catch { Write-Aegis "Unknown/New DLL: $($Dll.FileName)" "WARN" }
+        }
+    }
+} else { Write-Aegis "Core DLL Integrity Verified" "OK" }
+
+# PHASE 2: PROCESS PATH INTEGRITY (Anti-Spoofing)
+Write-Aegis "Auditing System Process Path Integrity" "SEC"
+Get-Process | Where-Object { $_.Name -match "svchost|lsass|wininit|services" } | ForEach-Object {
+    if ($_.Path -and $_.Path -notlike "*C:\Windows\System32*") {
+        Write-Aegis "SPOOFED PROCESS: $($_.Name) running from $($_.Path)" "FAIL"
     }
 }
-Ensure-Admin
 
-$Root = "$env:ProgramData\AegisUltra"
-$Log  = "$Root\Aegis.log"
-# Force creation of directory if it doesn't exist
-if (!(Test-Path $Root)) { New-Item -ItemType Directory -Path $Root -Force | Out-Null }
-
-function Log {
-    param($Msg)
-    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Add-Content -Path $Log -Value ("[{0}] {1}" -f $Timestamp, $Msg)
+# PHASE 3: SHADOW ADMIN & PRIVILEGE AUDIT
+Write-Aegis "Scanning for Shadow Administrators" "SEC"
+Get-LocalGroupMember -Group "Administrators" | ForEach-Object {
+    if ($_.Name -notlike "*Administrator*" -and $_.Name -notlike "*Domain Admins*") {
+        Write-Aegis "SHADOW ADMIN DETECTED: $($_.Name)" "FAIL"
+    }
 }
 
-# --- Advanced Modules ---
-function Get-ExternalIP {
-    try { (Invoke-RestMethod -Uri "https://api.ipify.org" -ErrorAction Stop) } catch { return "Offline" }
+# PHASE 4: NETWORK PERIMETER (Port Intelligence)
+Write-Aegis "Auditing Active Network Listeners" "SEC"
+Get-NetTCPConnection -State Listen | ForEach-Object {
+    $Proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
+    if ($_.LocalPort -gt 1024) {
+        $SystemProcs = "lsass", "svchost", "wininit", "services", "System", "AvastSvc"
+        if ($SystemProcs -contains $Proc.Name) {
+            Write-Aegis "System Listener: Port $($_.LocalPort) ($($Proc.Name))" "OK"
+        } else {
+            Write-Aegis "UNKNOWN LISTENER: Port $($_.LocalPort) ($($Proc.Name))" "WARN"
+        }
+    }
 }
 
-Clear-Host
-Write-Host "🛡️ AEGIS ULTRA ENGINE" -ForegroundColor Cyan
-Write-Host "Developed by Bilel Jelassi`n" -ForegroundColor Gray
+# PHASE 5: ADVANCED PERSISTENCE (Registry & WMI)
+Write-Aegis "Hunting WMI Event Persistence" "SEC"
+$WMI = Get-WmiObject -Namespace root\subscription -Class __EventConsumer
+if ($WMI) {
+    foreach ($C in $WMI) { Write-Aegis "WMI Persistence: $($C.Name)" "WARN" }
+}
 
-# System Section
-Write-Host "[>] Scanning Hardware..." -ForegroundColor Yellow
-$os = Get-CimInstance Win32_OperatingSystem
-[PSCustomObject]@{
-    OS        = $os.Caption
-    RAM_GB    = [math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
-    Public_IP = Get-ExternalIP
-} | Format-Table
+Write-Aegis "Stalking Registry Run Keys" "SEC"
+$Paths = @("HKLM:\Software\Microsoft\Windows\CurrentVersion\Run", "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run")
+foreach ($P in $Paths) {
+    if (Test-Path $P) {
+        Get-ItemProperty $P | Get-Member -MemberType NoteProperty | ForEach-Object {
+            if ($_.Name -notmatch "PSPath|PSParentPath|PSChildName|PSDrive|PSProvider") {
+                Write-Aegis "Auto-Start Found: $($_.Name)" "WARN"
+            }
+        }
+    }
+}
 
-# Security Section
-Write-Host "[>] Checking Defensive Perimeter..." -ForegroundColor Yellow
-$DefStatus = (Get-Service WinDefend -ErrorAction SilentlyContinue).Status
-[PSCustomObject]@{
-    Defender  = if($DefStatus -eq "Running") {"✅ Protected"} else {"❌ Action Required"}
-    Firewall  = if((Get-NetFirewallProfile -Name Public).Enabled) {"✅ On"} else {"❌ Off"}
-} | Format-List
+# PHASE 6: NVMe HEALTH
+Write-Aegis "NVMe S.M.A.R.T. Health Analysis" "INFO"
+Get-PhysicalDisk | ForEach-Object { 
+    $H = $_.HealthStatus
+    Write-Aegis "Drive $($_.DeviceID) Status: $H" (if($H -eq 'Healthy'){"OK"}else{"FAIL"})
+}
 
-# Finalize
-Write-Host "[>] Running Integrity Verification..." -ForegroundColor Yellow
-Write-Progress -Activity "Aegis Ultra" -Status "Verifying System Files..."
-sfc /verifyonly | Out-Null
+# PHASE 7: PURGE & REPAIR
+Write-Aegis "Executing Privacy Sweep & Junk Purge" "INFO"
+$Junk = @("$env:TEMP\*", "C:\Windows\Temp\*", "C:\Windows\Prefetch\*", "C:\Windows\SoftwareDistribution\Download\*")
+foreach ($P in $Junk) { Remove-Item $P -Recurse -Force -ErrorAction SilentlyContinue }
 
-Log "Sophisticated Audit Completed Successfully."
-Write-Host "`n[✔] Audit complete. Log generated at: $Log" -ForegroundColor Green
+Write-Aegis "Internet Boost & DNS Refresh" "INFO"
+ipconfig /flushdns | Out-Null
+netsh winsock reset | Out-Null
 
-# The 'Magical Touch': Automatically open the log location for the user
-Explorer.exe $Root
+Write-Aegis "Vulnerability Fix (System File Repair)" "INFO"
+sfc /scannow | Out-Null
+
+Write-Host "`n[✔] MASTER AUDIT COMPLETE. DATA SECURED: $LogDir" -ForegroundColor Green
+Invoke-Item $LogDir
