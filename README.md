@@ -27,7 +27,7 @@ This engine performs deep-level forensic analysis typically reserved for Inciden
 Run the following in an **Administrator PowerShell**:
 ```powershell
 # Clone the repository
-git clone [https://github.com/Billybu092/Aegis-Ultra.git](https://github.com/Billybu092/Aegis-Ultra.git)
+git clone https://github.com/Billybu092/Aegis-Ultra.git
 
 # Enter the directory
 cd Aegis-Ultra
