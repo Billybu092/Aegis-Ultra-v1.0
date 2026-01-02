@@ -21,6 +21,16 @@ This engine performs deep-level forensic analysis typically reserved for Inciden
 
 ---
 
+## 📖 Decoding the Report
+You don't need to be an expert to understand Aegis Ultra. Here is the "Cheat Sheet":
+
+* **[SEC] (Security Audit):** The Detective mode. Inspecting deep system files for signs of tampering.
+* **[INFO] (Information):** Standard maintenance (cleaning cache, checking hardware health).
+* **WMI Persistence:** This is a "Hidden Trigger." Hackers use WMI to make malware stay on your PC even after you delete it. We find and expose these triggers.
+* **Shadow Admin:** Accounts with "God Mode" powers. We ensure you are the only one with total control of your PC.
+
+---
+
 ## 🚀 Setup & VirusTotal Integration
 
 ### 1. Installation
