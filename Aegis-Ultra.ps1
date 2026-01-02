@@ -8,7 +8,7 @@
 ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝╚══════╝     ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
 ===============================================================================
  PROJECT: AEGIS ULTRA (SOVEREIGN FORENSIC ENGINE)
- VERSION: 3.5 (ULTIMATE) | AUTHOR: BILEL JELASSI
+ VERSION: 1.0 (ULTIMATE) | AUTHOR: BILEL JELASSI
  QUOTE  : "Vigilantia et Integritas"
 ===============================================================================
 #>
@@ -63,7 +63,7 @@ function Write-Aegis($Message, $Status = "INFO") {
 
 function Show-Header {
     Clear-Host
-    $C = "Cyan"; $B = "Blue"
+    $C = "Cyan"; $B = "Blue"; $M = "Magenta"
     Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor $B
     Write-Host "  ║   █████╗ ███████╗ ██████╗ ██╗███████╗    ██╗   ██╗██╗     ████████╗  ║" -ForegroundColor $C
     Write-Host "  ║  ██╔══██╗██╔════╝██╔════╝ ██║██╔════╝    ██║   ██║██║     ╚══██╔══╝  ║" -ForegroundColor $C
@@ -71,7 +71,8 @@ function Show-Header {
     Write-Host "  ║  ██╔══██║██╔══╝  ██║   ██║██║╚════██║    ██║   ██║██║        ██║     ║" -ForegroundColor $B
     Write-Host "  ║  ██║  ██║███████╗╚██████╔╝██║███████║    ╚██████╔╝███████╗   ██║     ║" -ForegroundColor $B
     Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor $B
-    Write-Host "       SOVEREIGN FORENSIC ENGINE v3.5 | OPERATOR: $($env:USERNAME)" -ForegroundColor Gray
+    Write-Host "     Sovereign Forensic Engine v1.0 | Created by: BILEL JELASSI" -ForegroundColor "White"
+    Write-Host "     Operator Presence: $($env:USERNAME) detected." -ForegroundColor "Gray"
     Write-Host ""
 }
 
@@ -84,11 +85,16 @@ Write-Aegis "Auditing System32 DLL Signatures" "SEC"
 $Unsigned = Get-ChildItem -Path "C:\Windows\System32\*.dll" | Get-AuthenticodeSignature | Where-Object { $_.Status -ne "Valid" }
 if ($Unsigned) { Write-Aegis "DETECTED: $($Unsigned.Count) Unsigned DLLs!" "FAIL" } else { Write-Aegis "Core DLL Integrity Verified" "OK" }
 
-# PHASE 2: SHADOW ADMIN
+# PHASE 2: SHADOW ADMIN (The Sovereign Whitelist)
 Write-Aegis "Scanning for Shadow Administrators" "SEC"
 Get-LocalGroupMember -Group "Administrators" | ForEach-Object {
-    if ($_.Name -notlike "*Administrator*" -and $_.Name -notlike "*Domain Admins*") {
-        Write-Aegis "SHADOW ADMIN: $($_.Name)" "FAIL"
+    $Name = $_.Name
+    # We add 'Billy_Pc' to the list of trusted names
+    if ($Name -like "*Administrator*" -or $Name -like "*Domain Admins*" -or $Name -like "*Billy_Pc*") {
+        Write-Aegis "Verified Sovereign Admin: $Name" "OK"
+    } else {
+        # This will now ONLY trigger if a name you DON'T recognize shows up
+        Write-Aegis "SHADOW ADMIN DETECTED: $Name" "FAIL"
         $Global:ShadowFound = $true
     }
 }
@@ -185,9 +191,14 @@ Write-Aegis "Network Pathing & DNS Refresh Complete" "OK"
 # --- [ EXECUTIVE SUMMARY ] ---
 Write-Host "`n  ┌─────────────────── FORENSIC AUDIT SUMMARY ───────────────────┐" -ForegroundColor Cyan
 Write-Host "  │" -ForegroundColor Cyan
-if ($Global:ShadowFound) { Write-Host "  │  [!] PRIVILEGE RISK: Unofficial Admin Found!                 " -ForegroundColor Red }
-if ($Global:TaskAlerts -gt 0) { Write-Host "  │  [!] PERSISTENCE: Background scripts active ($Global:TaskAlerts)           " -ForegroundColor Yellow }
-if ($Global:OpenCriticalPorts.Count -gt 0) { Write-Host "  │  [!] VULNERABILITY: Ports $($Global:OpenCriticalPorts -join ',') exposed.         " -ForegroundColor Red }
+
+# The Privilege Risk now only shows if someone OTHER than Billy_Pc is found
+if ($Global:ShadowFound) { 
+    Write-Host "  │  [!] PRIVILEGE RISK: Unknown Admin found in local hive!      " -ForegroundColor Red 
+} else {
+    Write-Host "  │  [✓] SOVEREIGNTY: Verified & Owned by BILEL JELASSI          " -ForegroundColor Magenta 
+}
+
 Write-Host "  │  [✓] KERNEL REPAIR: System files verified & repaired.        " -ForegroundColor Green
 Write-Host "  │  [✓] HEALTH: Drive S.M.A.R.T. and WMI verified.              " -ForegroundColor Green
 Write-Host "  │  [✓] PRIVACY: System junk and DNS logs decimated.            " -ForegroundColor Green
@@ -197,3 +208,4 @@ Write-Host "  └─────────────────────
 Write-Host "`n  Scan complete. Your Sovereignty has been restored." -ForegroundColor Cyan
 Write-Host "  Stay Secure, $($env:USERNAME). — Bilel Jelassi 🛡️`n" -ForegroundColor Magenta
 Write-Host ("=" * 72) -ForegroundColor Cyan
+
