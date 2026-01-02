@@ -164,11 +164,18 @@ Write-Aegis "Purged Unnecessary System Bloat" "OK"
 # PHASE 9: NMAP PROBE (With CVE Intelligence)
 Write-Aegis "Launching Critical Port Discovery" "SEC"
 $TargetPorts = [ordered]@{
-    21   = @{ Name = "FTP (Unencrypted)"; Risk = "Cleartext Sniffing / Credential Theft" }
-    22   = @{ Name = "SSH (Remote Shell)"; Risk = "Brute Force / Lateral Movement" }
-    23   = @{ Name = "Telnet (Legacy)";    Risk = "Critical Vulnerability (CVE-2020-10188)" }
-    445  = @{ Name = "SMB (File Sharing)"; Risk = "Ransomware / EternalBlue (CVE-2017-0144)" }
-    3389 = @{ Name = "RDP (Remote Desk)";  Risk = "BlueKeep / Unauthorized Access" }
+    # Current Ports
+    21   = @{ Name = "FTP";        Risk = "Cleartext Credential Theft" }
+    22   = @{ Name = "SSH";        Risk = "Brute Force / Lateral Movement" }
+    23   = @{ Name = "Telnet";     Risk = "Critical Insecurity (No Encryption)" }
+    445  = @{ Name = "SMB";        Risk = "Ransomware / EternalBlue Attack" }
+    3389 = @{ Name = "RDP";        Risk = "BlueKeep / Remote Hijacking" }
+    # Added Critical Ports
+    135  = @{ Name = "RPC";        Risk = "Endpoint Mapper / System Fingerprinting" }
+    1433 = @{ Name = "SQL Server"; Risk = "Database Exfiltration / Data Theft" }
+    5900 = @{ Name = "VNC";        Risk = "Unsecured Remote Screen Access" }
+    5985 = @{ Name = "WinRM";      Risk = "Remote PowerShell Execution" }
+    8080 = @{ Name = "HTTP-Alt";   Risk = "Unsecured Admin Control Panels" }
 }
 
 Write-Host "  [!] Probing local attack surface for vulnerabilities..." -ForegroundColor Gray
@@ -208,4 +215,5 @@ Write-Host "  └─────────────────────
 Write-Host "`n  Scan complete. Your Sovereignty has been restored." -ForegroundColor Cyan
 Write-Host "  Stay Secure, $($env:USERNAME). — Bilel Jelassi 🛡️`n" -ForegroundColor Magenta
 Write-Host ("=" * 72) -ForegroundColor Cyan
+
 
