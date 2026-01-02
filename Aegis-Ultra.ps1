@@ -2,7 +2,7 @@
 ===============================================================================
  AEGIS ULTRA – SOVEREIGN FORENSIC EDITION (ULTIMATE)
  Advanced Threat Hunting, NVMe Health & System Hardening
- Author : Bilel Jelassi | Version: 3.0
+ Author : Bilel Jelassi | Version: 1.0
 ===============================================================================
 #>
 
@@ -45,7 +45,7 @@ function Show-Header {
     Write-Host " ░██▄▄▄▄██  ▒▓█  ▄ ░▓█  ██▓░██░  ▒   ██▒    ▓▓█  ░██░░██░  ░ ▓██▓ ░ ▒██▀▀█▄  ░██▄▄▄▄██ " -ForegroundColor $B
     Write-Host "  ▓█   ▓██▒ ░▒████▒░▒▓███▀▒░██░▒██████▒▒    ▒▒█████▓ ░██░    ▒██▒ ░ ░██▓ ▒██▒ ▓█   ▓██▒" -ForegroundColor $B
     Write-Host "  ▒▒   ▓▒█░ ░░ ▒░ ░ ░▒   ▒ ░▓  ▒ ▒▓▒ ▒ ░    ░▒▓▒ ▒ ▒ ░▓      ▒ ░░   ░ ▒▓ ░▒▓░ ▒▒   ▓▒█░" -ForegroundColor $G
-    Write-Host "                                v3.0 MASTER EDITION | BY BILEL JELASSI`n" -ForegroundColor $M
+    Write-Host "                                v1.0 MASTER EDITION | BY BILEL JELASSI`n" -ForegroundColor $M
 }
 
 # --- EXECUTION ENGINE ---
@@ -88,16 +88,26 @@ Get-LocalGroupMember -Group "Administrators" | ForEach-Object {
     }
 }
 
-# PHASE 4: NETWORK PERIMETER (Port Intelligence)
+# PHASE 4: NETWORK PERIMETER (Verified Intelligence)
 Write-Aegis "Auditing Active Network Listeners" "SEC"
 Get-NetTCPConnection -State Listen | ForEach-Object {
     $Proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
-    if ($_.LocalPort -gt 1024) {
-        $SystemProcs = "lsass", "svchost", "wininit", "services", "System", "AvastSvc"
+    if ($_.LocalPort -gt 1024 -and $Proc) {
+        # Check Digital Signature of the process
+        $Signature = Get-AuthenticodeSignature -FilePath $Proc.Path
+        $SystemProcs = "lsass", "svchost", "wininit", "services", "System"
+
         if ($SystemProcs -contains $Proc.Name) {
             Write-Aegis "System Listener: Port $($_.LocalPort) ($($Proc.Name))" "OK"
-        } else {
-            Write-Aegis "UNKNOWN LISTENER: Port $($_.LocalPort) ($($Proc.Name))" "WARN"
+        }
+        elseif ($Signature.Status -eq "Valid") {
+            # It's a verified 3rd party app (like MSI, SteelSeries, etc.)
+            $Publisher = $Signature.SignerCertificate.Subject.Split(',')[0].Replace("CN=", "")
+            Write-Aegis "Verified App: Port $($_.LocalPort) ($($Proc.Name) - $Publisher)" "OK"
+        }
+        else {
+            # It's unsigned and listening on your network - DANGEROUS
+            Write-Aegis "UNTRUSTED LISTENER: Port $($_.LocalPort) ($($Proc.Name))" "FAIL"
         }
     }
 }
@@ -141,4 +151,5 @@ Write-Aegis "Vulnerability Fix (System File Repair)" "INFO"
 sfc /scannow | Out-Null
 
 Write-Host "`n[✔] MASTER AUDIT COMPLETE. DATA SECURED: $LogDir" -ForegroundColor Green
+
 Invoke-Item $LogDir
